@@ -1,0 +1,221 @@
+/*
+ * Base layer only. Component styling lives in inline style objects fed by
+ * lib/tokens.ts — these variables exist so global rules (body, focus,
+ * scrollbars) can reach the same values without redeclaring them.
+ */
+:root {
+  --brand: #2563eb;
+  --page-bg: #f6f7f9;
+  --body: #334155;
+  --font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--body);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Loading placeholders shimmer, and stop entirely when motion is unwelcome. */
+.skeleton {
+  background-image: linear-gradient(90deg, #eef1f5 0, #f6f8fb 60px, #eef1f5 120px);
+  background-size: 380px 100%;
+  animation: itsm-shimmer 1.2s linear infinite;
+}
+
+@keyframes itsm-shimmer {
+  0% { background-position: -380px 0; }
+  100% { background-position: 380px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* Visible to assistive technology only: used for things like "(required)" that
+   an asterisk already conveys visually. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Interaction states.
+ *
+ * Inline styles cannot express :hover or :active, so the states that make an
+ * interface feel responsive live here. Durations sit in the 150-200ms band —
+ * long enough to read as motion, short enough not to lag the pointer — and the
+ * reduced-motion block above already neutralises them on request.
+ */
+
+/* Rows that lead somewhere should say so under the pointer. */
+.data-row {
+  transition: background-color 150ms ease-out;
+}
+
+.data-row:hover {
+  background-color: #fafbff;
+}
+
+/* Navigation: an inactive item warms slightly; the active one is already solid. */
+.app-rail-link {
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.app-rail-link:hover {
+  color: #ffffff !important;
+}
+
+.app-rail-link[aria-current='page']:hover {
+  background: var(--brand) !important;
+}
+
+.app-rail-link:not([aria-current='page']):hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.app-rail-signout {
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.app-rail-signout:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* Buttons and pressable surfaces settle slightly when pressed, without moving
+   their neighbours: transform only, never layout. */
+button:not(:disabled),
+a {
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out,
+    opacity 150ms ease-out;
+}
+
+button:not(:disabled):active {
+  transform: translateY(0.5px);
+}
+
+/* A disabled control must look unavailable, not merely faint. */
+button:disabled {
+  cursor: not-allowed;
+}
+
+/*
+ * Autofill.
+ *
+ * Chrome paints its own background and text colour over an autofilled input,
+ * which overrides the inline styles the field is built from and leaves a tinted
+ * box that belongs to no theme. There is no property to switch it off, so the
+ * standard workaround: an inset shadow large enough to cover the field repaints
+ * the surface, and -webkit-text-fill-color restores the text.
+ *
+ * The long transition delay stops the tint reappearing for a frame when the
+ * browser re-applies it after focus.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+/*
+ * A stat tile that links somewhere should say so on approach: the border warms
+ * to brand and the arrow fades in. The card itself does not move — a grid of
+ * tiles that nudge on hover is noise, not feedback.
+ */
+.stat-card-link {
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.stat-card-link:hover {
+  border-color: #bfd3fb !important;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+}
+
+.stat-card-link:hover .stat-card-arrow,
+.stat-card-link:focus-visible .stat-card-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* The per-row open control: invisible until the row is approached, so a long
+   table is not a column of arrows, but always reachable by keyboard. */
+.row-open {
+  opacity: 0;
+  transition: opacity 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.data-row:hover .row-open,
+.row-open:focus-visible {
+  opacity: 1;
+}
+
+.row-open:hover {
+  background: #eef4ff;
+  color: #1d4ed8 !important;
+}
+
+/* A removable filter chip. */
+.filter-chip button:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Row action icons: a quiet tint on approach, so a row of them reads as a set
+   rather than as four permanently-loud controls. */
+.icon-button {
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.icon-button:not(:disabled):hover {
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+.icon-button-danger:not(:disabled):hover {
+  background: #fef2f2;
+  color: #be123c;
+}

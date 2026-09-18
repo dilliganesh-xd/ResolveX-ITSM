@@ -1,0 +1,31 @@
+# Java / Maven
+backend/target/
+*.class
+
+# Local H2 database. Holds seeded accounts with real BCrypt password hashes and
+# whatever incidents have been created while working - never publish it. The
+# app recreates it on first run.
+backend/data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Logs
+*.log
+nohup.out
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment
+.env
+.env.local
+*.local
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

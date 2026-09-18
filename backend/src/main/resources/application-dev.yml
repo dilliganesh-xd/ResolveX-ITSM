@@ -1,0 +1,28 @@
+# Local development: H2, started in-process by Spring Boot.
+#
+# `mvn spring-boot:run` is all that is needed - no Docker, no database server,
+# no credentials. The file-backed database means the incidents you create while
+# working are still there after a restart; point DB_URL at
+# `jdbc:h2:mem:itsm;DB_CLOSE_DELAY=-1;MODE=PostgreSQL` instead for a database
+# that is empty every time.
+#
+# Hibernate maintains this schema. The Flyway migrations are PostgreSQL SQL and
+# are not used here; see application-postgres.yml.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/itsm;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${DB_DDL_AUTO:update}
+    properties:
+      hibernate:
+        show_sql: ${SHOW_SQL:false}
+  h2:
+    console:
+      # Browse the local data at http://localhost:8080/h2-console
+      # (JDBC URL jdbc:h2:file:./data/itsm, user sa, no password).
+      enabled: ${H2_CONSOLE:true}
+      path: /h2-console

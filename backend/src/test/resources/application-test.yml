@@ -1,0 +1,25 @@
+# Automated tests run against in-memory H2, so the suite needs no external
+# database and leaves nothing behind.
+#
+# The schema here is created by Hibernate from the entity model rather than by
+# Flyway: the migrations are PostgreSQL SQL and would not run on H2, and the
+# entity model is what the tests are written against. The two are kept honest by
+# the `validate` setting the application uses against PostgreSQL - a mapping that
+# has drifted from V1 fails to start there.
+spring:
+  datasource:
+    url: jdbc:h2:mem:itsm-test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+# The sweep is driven directly by the tests; a timer running alongside them
+# would change incidents mid-assertion.
+sla:
+  scheduler:
+    enabled: false
