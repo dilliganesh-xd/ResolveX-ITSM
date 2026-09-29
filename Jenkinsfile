@@ -43,7 +43,7 @@ pipeline {
         stage('Backend Test & Build') {
             steps {
                 dir('backend') {
-                    sh './mvn clean test package'
+                    sh 'mvn clean test package'
                 }
             }
         }
@@ -56,7 +56,7 @@ pipeline {
                 dir('backend') {
                     withSonarQubeEnv('SonarCloud') {
                         sh '''
-                            ./mvn sonar:sonar \
+                            mvn sonar:sonar \
                             -Dsonar.projectKey=YOUR_PROJECT_KEY \
                             -Dsonar.organization=YOUR_ORGANIZATION_KEY
                         '''
