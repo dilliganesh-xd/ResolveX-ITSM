@@ -1,12 +1,29 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '2'
+            )
+        )
+        disableConcurrentBuilds()
+    }
+
     tools {
-        // These names MUST exactly match the names configured
-        // under Manage Jenkins → Tools
         jdk 'JDK21'
         nodejs 'NodeJS-20'
         maven 'MAVEN'
+    }
+
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = 'YOUR_ACCOUNT_ID'
+
+        FRONTEND_IMAGE = 'incident-management-frontend'
+        BACKEND_IMAGE  = 'incident-management-backend'
+
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
 
     stages {
@@ -16,11 +33,9 @@ pipeline {
         // =========================================================
         stage('Checkout') {
             steps {
-                // Checkout source code from the configured Git repository
                 checkout scm
             }
         }
-
 
         // =========================================================
         // 2. FRONTEND TEST & BUILD
@@ -28,19 +43,12 @@ pipeline {
         stage('Frontend Test & Build') {
             steps {
                 dir('frontend') {
-
-                    // Install dependencies from package-lock.json
-                    bat 'npm ci'
-
-                    // Run frontend tests
-                    bat 'npm test -- --run'
-
-                    // Create production-ready files in dist/
-                    bat 'npm run build'
+                    sh 'npm ci'
+                    sh 'npm test -- --run'
+                    sh 'npm run build'
                 }
             }
         }
-
 
         // =========================================================
         // 3. BACKEND TEST & BUILD
@@ -48,15 +56,11 @@ pipeline {
         stage('Backend Test & Build') {
             steps {
                 dir('backend') {
-
-                    // Clean previous Maven build output
-                    // Run unit tests
-                    // Package Spring Boot application as JAR
-                    bat 'mvnw.cmd clean test package'
+                    sh 'chmod +x mvnw'
+                    sh './mvnw clean test package'
                 }
             }
         }
-
 
         // =========================================================
         // 4. SONARCLOUD ANALYSIS
@@ -64,14 +68,10 @@ pipeline {
         stage('SonarCloud Analysis') {
             steps {
                 dir('backend') {
-
-                    // Inject SonarCloud configuration and credentials
-                    // configured in Jenkins
                     withSonarQubeEnv('SonarCloud') {
-
-                        bat '''
-                            mvnw.cmd sonar:sonar ^
-                            -Dsonar.projectKey=YOUR_PROJECT_KEY ^
+                        sh '''
+                            ./mvnw sonar:sonar \
+                            -Dsonar.projectKey=YOUR_PROJECT_KEY \
                             -Dsonar.organization=YOUR_ORGANIZATION_KEY
                         '''
                     }
@@ -79,41 +79,78 @@ pipeline {
             }
         }
 
-
         // =========================================================
         // 5. DOCKER BUILD - FRONTEND
         // =========================================================
         stage('Docker Build - Frontend') {
             steps {
-
-                // Build frontend Docker image
-                // Dockerfile: frontend/Dockerfile
-                bat '''
-                    docker build ^
-                    -t incident-management-frontend:%BUILD_NUMBER% ^
+                sh '''
+                    docker build \
+                    -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
                     ./frontend
                 '''
             }
         }
-
 
         // =========================================================
         // 6. DOCKER BUILD - BACKEND
         // =========================================================
         stage('Docker Build - Backend') {
             steps {
-
-                // Build backend Docker image
-                // Dockerfile: backend/Dockerfile
-                bat '''
-                    docker build ^
-                    -t incident-management-backend:%BUILD_NUMBER% ^
+                sh '''
+                    docker build \
+                    -t ${BACKEND_IMAGE}:${BUILD_NUMBER} \
                     ./backend
                 '''
             }
         }
-    }
 
+        // =========================================================
+        // 7. ECR LOGIN
+        // =========================================================
+        stage('ECR Login') {
+            steps {
+                sh '''
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login \
+                    --username AWS \
+                    --password-stdin ${ECR_REGISTRY}
+                '''
+            }
+        }
+
+        // =========================================================
+        // 8. TAG & PUSH FRONTEND
+        // =========================================================
+        stage('Push Frontend to ECR') {
+            steps {
+                sh '''
+                    docker tag \
+                    ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
+                    ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
+
+                    docker push \
+                    ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        // =========================================================
+        // 9. TAG & PUSH BACKEND
+        // =========================================================
+        stage('Push Backend to ECR') {
+            steps {
+                sh '''
+                    docker tag \
+                    ${BACKEND_IMAGE}:${BUILD_NUMBER} \
+                    ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
+
+                    docker push \
+                    ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
+                '''
+            }
+        }
+    }
 
     // =============================================================
     // POST ACTIONS
@@ -131,15 +168,14 @@ pipeline {
               - Tests passed
               - Production build created
               - Docker image built
+              - Image pushed to ECR
 
             Backend:
               - Tests passed
               - Maven package created
               - SonarCloud analysis completed
               - Docker image built
-
-            ECR PUSH: NOT INCLUDED
-            TRIVY SCAN: NOT INCLUDED
+              - Image pushed to ECR
 
             ============================================
             '''
@@ -161,5 +197,3 @@ pipeline {
         }
     }
 }
-
-
