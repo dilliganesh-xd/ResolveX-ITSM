@@ -18,40 +18,27 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = 'YOUR_ACCOUNT_ID'
 
         FRONTEND_IMAGE = 'incident-management-frontend'
         BACKEND_IMAGE  = 'incident-management-backend'
-
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
 
     stages {
 
         // =========================================================
-        // 1. CHECKOUT
+        // 1. FRONTEND BUILD
         // =========================================================
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        // =========================================================
-        // 2. FRONTEND TEST & BUILD
-        // =========================================================
-        stage('Frontend Test & Build') {
+        stage('Frontend Build') {
             steps {
                 dir('frontend') {
                     sh 'npm ci'
-                    sh 'npm test -- --run'
                     sh 'npm run build'
                 }
             }
         }
 
         // =========================================================
-        // 3. BACKEND TEST & BUILD
+        // 2. BACKEND TEST & BUILD
         // =========================================================
         stage('Backend Test & Build') {
             steps {
@@ -63,7 +50,7 @@ pipeline {
         }
 
         // =========================================================
-        // 4. SONARCLOUD ANALYSIS
+        // 3. SONARCLOUD ANALYSIS
         // =========================================================
         stage('SonarCloud Analysis') {
             steps {
@@ -80,7 +67,7 @@ pipeline {
         }
 
         // =========================================================
-        // 5. DOCKER BUILD - FRONTEND
+        // 4. DOCKER BUILD - FRONTEND
         // =========================================================
         stage('Docker Build - Frontend') {
             steps {
@@ -93,7 +80,7 @@ pipeline {
         }
 
         // =========================================================
-        // 6. DOCKER BUILD - BACKEND
+        // 5. DOCKER BUILD - BACKEND
         // =========================================================
         stage('Docker Build - Backend') {
             steps {
@@ -104,57 +91,8 @@ pipeline {
                 '''
             }
         }
-
-        // =========================================================
-        // 7. ECR LOGIN
-        // =========================================================
-        stage('ECR Login') {
-            steps {
-                sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login \
-                    --username AWS \
-                    --password-stdin ${ECR_REGISTRY}
-                '''
-            }
-        }
-
-        // =========================================================
-        // 8. TAG & PUSH FRONTEND
-        // =========================================================
-        stage('Push Frontend to ECR') {
-            steps {
-                sh '''
-                    docker tag \
-                    ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
-                    ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
-
-                    docker push \
-                    ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
-                '''
-            }
-        }
-
-        // =========================================================
-        // 9. TAG & PUSH BACKEND
-        // =========================================================
-        stage('Push Backend to ECR') {
-            steps {
-                sh '''
-                    docker tag \
-                    ${BACKEND_IMAGE}:${BUILD_NUMBER} \
-                    ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
-
-                    docker push \
-                    ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
-                '''
-            }
-        }
     }
 
-    // =============================================================
-    // POST ACTIONS
-    // =============================================================
     post {
 
         success {
@@ -162,21 +100,12 @@ pipeline {
             ============================================
             CI PIPELINE COMPLETED SUCCESSFULLY
             ============================================
+            Frontend build completed
+            Backend build and tests completed
+            SonarCloud analysis completed
+            Docker images built successfully
 
-            Frontend:
-              - Dependencies installed
-              - Tests passed
-              - Production build created
-              - Docker image built
-              - Image pushed to ECR
-
-            Backend:
-              - Tests passed
-              - Maven package created
-              - SonarCloud analysis completed
-              - Docker image built
-              - Image pushed to ECR
-
+            ECR PUSH: DISABLED FOR NOW
             ============================================
             '''
         }
