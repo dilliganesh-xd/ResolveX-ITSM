@@ -57,8 +57,8 @@ pipeline {
                     withSonarQubeEnv('SonarCloud') {
                         sh '''
                             mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-                            -Dsonar.projectKey=Sonar_Cloud
-                            -Dsonar.organization=sonartokenkey
+                            -Dsonar.projectKey=sonartokenkey
+                            -Dsonar.organization=Sonar_Cloud
                         '''
                     }
                 }
