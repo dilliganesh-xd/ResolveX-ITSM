@@ -55,8 +55,7 @@ pipeline {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('SonarCloud') {
-                            sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.projectKey=sonartokenkey_itsm-resolvex -Dsonar.organization=sonartokenkey'
-            }
+                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.projectKey=sonartokenkey_itsm-resolvex -Dsonar.organization=sonartokenkey'
                     }
                 }
             }
