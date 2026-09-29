@@ -58,7 +58,7 @@ pipeline {
                         sh '''
                             mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
                             -Dsonar.projectKey=sonartokenkey_itsm-resolvex
-                            -Dsonar.organization=Sonar_Cloud
+                            -Dsonar.organization=sonartokenkey
                         '''
                     }
                 }
