@@ -18,16 +18,21 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '333968387080'
+
+        ECR_REGISTRY = '333968387080.dkr.ecr.ap-south-1.amazonaws.com'
 
         FRONTEND_IMAGE = 'incident-management-frontend'
         BACKEND_IMAGE  = 'incident-management-backend'
+
+        ECR_FRONTEND_REPO = 'resolvex-frontend'
+        ECR_BACKEND_REPO  = 'resolvex-backend'
+
+        TRIVY_IMAGE = 'aquasec/trivy:latest'
     }
 
     stages {
 
-        // =========================================================
-        // 1. FRONTEND BUILD
-        // =========================================================
         stage('Frontend Build') {
             steps {
                 dir('frontend') {
@@ -37,9 +42,6 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // 2. BACKEND TEST & BUILD
-        // =========================================================
         stage('Backend Test & Build') {
             steps {
                 dir('backend') {
@@ -48,22 +50,20 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // 3. SONARCLOUD ANALYSIS
-        // =========================================================
         stage('SonarCloud Analysis') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('SonarCloud') {
-                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.projectKey=sonartokenkey_itsm-resolvex -Dsonar.organization=sonartokenkey'
+                        sh '''
+                            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
+                            -Dsonar.projectKey=sonartokenkey_itsm-resolvex \
+                            -Dsonar.organization=sonartokenkey
+                        '''
                     }
                 }
             }
         }
 
-        // =========================================================
-        // 4. DOCKER BUILD - FRONTEND
-        // =========================================================
         stage('Docker Build - Frontend') {
             steps {
                 sh '''
@@ -74,9 +74,6 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // 5. DOCKER BUILD - BACKEND
-        // =========================================================
         stage('Docker Build - Backend') {
             steps {
                 sh '''
@@ -86,21 +83,88 @@ pipeline {
                 '''
             }
         }
+
+        stage('Trivy Scan - Frontend') {
+            steps {
+                sh '''
+                    docker run --rm \
+                    -v /var/run/docker.sock:/var/run/docker.sock \
+                    ${TRIVY_IMAGE} \
+                    image \
+                    --severity HIGH,CRITICAL \
+                    --exit-code 1 \
+                    ${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Trivy Scan - Backend') {
+            steps {
+                sh '''
+                    docker run --rm \
+                    -v /var/run/docker.sock:/var/run/docker.sock \
+                    ${TRIVY_IMAGE} \
+                    image \
+                    --severity HIGH,CRITICAL \
+                    --exit-code 1 \
+                    ${BACKEND_IMAGE}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('ECR Login') {
+            steps {
+                sh '''
+                    aws ecr get-login-password \
+                    --region ${AWS_REGION} | \
+                    docker login \
+                    --username AWS \
+                    --password-stdin ${ECR_REGISTRY}
+                '''
+            }
+        }
+
+        stage('Tag Images') {
+            steps {
+                sh '''
+                    docker tag \
+                    ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
+                    ${ECR_REGISTRY}/${ECR_FRONTEND_REPO}:${BUILD_NUMBER}
+
+                    docker tag \
+                    ${BACKEND_IMAGE}:${BUILD_NUMBER} \
+                    ${ECR_REGISTRY}/${ECR_BACKEND_REPO}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Push Images to ECR') {
+            steps {
+                sh '''
+                    docker push \
+                    ${ECR_REGISTRY}/${ECR_FRONTEND_REPO}:${BUILD_NUMBER}
+
+                    docker push \
+                    ${ECR_REGISTRY}/${ECR_BACKEND_REPO}:${BUILD_NUMBER}
+                '''
+            }
+        }
     }
 
     post {
-
         success {
             echo '''
             ============================================
             CI PIPELINE COMPLETED SUCCESSFULLY
             ============================================
+
             Frontend build completed
             Backend build and tests completed
             SonarCloud analysis completed
             Docker images built successfully
+            Trivy security scans passed
+            Images pushed to ECR successfully
 
-            ECR PUSH: DISABLED FOR NOW
             ============================================
             '''
         }
@@ -110,8 +174,10 @@ pipeline {
             ============================================
             CI PIPELINE FAILED
             ============================================
+
             Check the failed stage and Jenkins console
             output for the root cause.
+
             ============================================
             '''
         }
@@ -121,4 +187,3 @@ pipeline {
         }
     }
 }
-
