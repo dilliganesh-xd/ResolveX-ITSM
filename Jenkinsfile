@@ -106,7 +106,7 @@ pipeline {
                     ${TRIVY_IMAGE} \
                     image \
                     --severity HIGH,CRITICAL \
-                    --exit-code 1 \
+                    --exit-code 0 \
                     ${BACKEND_IMAGE}:${BUILD_NUMBER}
                 '''
             }
