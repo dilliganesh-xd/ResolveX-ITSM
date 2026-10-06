@@ -14,6 +14,10 @@ spring:
     enabled: false
   jackson:
     default-property-inclusion: non_null
+    deserialization:
+      # Jackson 3 rejects an absent primitive by default. Clients omit optional
+      # flags such as `internal` and `clearTeam`, which must read as false.
+      fail-on-null-for-primitives: false
 
 server:
   port: ${SERVER_PORT:8080}

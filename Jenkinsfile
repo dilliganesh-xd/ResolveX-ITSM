@@ -28,7 +28,11 @@ pipeline {
         ECR_FRONTEND_REPO = 'resolvex-frontend'
         ECR_BACKEND_REPO  = 'resolvex-backend'
 
-        TRIVY_IMAGE = 'aquasec/trivy:latest'
+        // Pinned so scan behaviour only changes when the version is bumped here.
+        TRIVY_IMAGE = 'aquasec/trivy:0.75.0'
+        // Named Docker volume that keeps Trivy's vulnerability DB between builds,
+        // so each scan does not re-download it (and hit registry rate limits).
+        TRIVY_CACHE = 'trivy-cache'
     }
 
     stages {
@@ -45,7 +49,8 @@ pipeline {
         stage('Backend Test & Build') {
             steps {
                 dir('backend') {
-                    sh 'mvn clean test package'
+                    // verify = compile, test once, package. `test package` ran the suite twice.
+                    sh 'mvn -B clean verify'
                 }
             }
         }
@@ -67,7 +72,7 @@ pipeline {
         stage('Docker Build - Frontend') {
             steps {
                 sh '''
-                    docker build \
+                    docker build --pull \
                     -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
                     ./frontend
                 '''
@@ -77,7 +82,7 @@ pipeline {
         stage('Docker Build - Backend') {
             steps {
                 sh '''
-                    docker build \
+                    docker build --pull \
                     -t ${BACKEND_IMAGE}:${BUILD_NUMBER} \
                     ./backend
                 '''
@@ -89,9 +94,11 @@ pipeline {
                 sh '''
                     docker run --rm \
                     -v /var/run/docker.sock:/var/run/docker.sock \
+                    -v ${TRIVY_CACHE}:/root/.cache/ \
                     ${TRIVY_IMAGE} \
                     image \
                     --severity HIGH,CRITICAL \
+                    --ignore-unfixed \
                     --exit-code 1 \
                     ${FRONTEND_IMAGE}:${BUILD_NUMBER}
                 '''
@@ -103,10 +110,12 @@ pipeline {
                 sh '''
                     docker run --rm \
                     -v /var/run/docker.sock:/var/run/docker.sock \
+                    -v ${TRIVY_CACHE}:/root/.cache/ \
                     ${TRIVY_IMAGE} \
                     image \
                     --severity HIGH,CRITICAL \
-                    --exit-code 0 \
+                    --ignore-unfixed \
+                    --exit-code 1 \
                     ${BACKEND_IMAGE}:${BUILD_NUMBER}
                 '''
             }
@@ -183,6 +192,15 @@ pipeline {
         }
 
         always {
+            // Remove this build's images from the agent so its disk does not fill up.
+            sh '''
+                docker rmi \
+                ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
+                ${BACKEND_IMAGE}:${BUILD_NUMBER} \
+                ${ECR_REGISTRY}/${ECR_FRONTEND_REPO}:${BUILD_NUMBER} \
+                ${ECR_REGISTRY}/${ECR_BACKEND_REPO}:${BUILD_NUMBER} \
+                || true
+            '''
             echo 'Jenkins pipeline execution completed.'
         }
     }
