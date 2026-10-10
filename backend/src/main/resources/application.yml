@@ -19,6 +19,16 @@ spring:
       # flags such as `internal` and `clearTeam`, which must read as false.
       fail-on-null-for-primitives: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+  cache:
+    type: redis
+
+
 server:
   port: ${SERVER_PORT:8080}
   error:
