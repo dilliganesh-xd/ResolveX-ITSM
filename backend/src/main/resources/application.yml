@@ -47,3 +47,11 @@ logging:
   level:
     com.rewin.itsm: ${LOG_LEVEL:INFO}
     com.rewin.itsm.service.SlaSchedulerService: ${SLA_SCHEDULER_LOG_LEVEL:INFO}
+
+
+aws:
+  eventbridge:
+    enabled: ${AWS_EVENTBRIDGE_ENABLED:false}
+    region: ${AWS_REGION:ap-south-1}
+    event-bus-name: ${AWS_EVENT_BUS_NAME:default}
+

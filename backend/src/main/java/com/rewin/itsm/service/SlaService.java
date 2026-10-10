@@ -40,13 +40,19 @@ public class SlaService {
     private final IncidentAuditService audit;
     private final NotificationService notifications;
     private final Clock clock;
+    private final EventBridgePublisher eventBridgePublisher;
 
-    public SlaService(SlaPolicyRepository slaPolicyRepository, IncidentAuditService audit,
-                      NotificationService notifications, Clock clock) {
-        this.slaPolicyRepository = slaPolicyRepository;
-        this.audit = audit;
-        this.notifications = notifications;
-        this.clock = clock;
+    public SlaService(
+        SlaPolicyRepository slaPolicyRepository,
+        IncidentAuditService audit,
+        NotificationService notifications,
+        Clock clock,
+        EventBridgePublisher eventBridgePublisher) {
+    this.slaPolicyRepository = slaPolicyRepository;
+    this.audit = audit;
+    this.notifications = notifications;
+    this.clock = clock;
+    this.eventBridgePublisher = eventBridgePublisher;
     }
 
     /**
@@ -158,6 +164,23 @@ public class SlaService {
             // Told at the same moment it is recorded, so the sweep that notices
             // the breach is the thing that raises it.
             notifications.slaBreached(incident, "Response");
+            eventBridgePublisher.publishSlaBreach(
+                incident.getReference(),
+                "Response",
+                incident.getReporter().getEmail()
+            );
+            
+            if (incident.getAssignedAgent() != null
+                    && incident.getAssignedAgent().getEmail() != null
+                    && !incident.getAssignedAgent().getEmail()
+                            .equalsIgnoreCase(incident.getReporter().getEmail())) {
+                eventBridgePublisher.publishSlaBreach(
+                    incident.getReference(),
+                    "Response",
+                    incident.getAssignedAgent().getEmail()
+                );
+            }
+
         }
 
         if (incident.getResolutionBreachedAt() == null
@@ -165,6 +188,23 @@ public class SlaService {
             incident.setResolutionBreachedAt(now);
             audit.slaStageBreached(incident, "Resolution");
             notifications.slaBreached(incident, "Resolution");
+            eventBridgePublisher.publishSlaBreach(
+                incident.getReference(),
+                "Resolution",
+                incident.getReporter().getEmail()
+            );
+            
+            if (incident.getAssignedAgent() != null
+                    && incident.getAssignedAgent().getEmail() != null
+                    && !incident.getAssignedAgent().getEmail()
+                            .equalsIgnoreCase(incident.getReporter().getEmail())) {
+                eventBridgePublisher.publishSlaBreach(
+                    incident.getReference(),
+                    "Resolution",
+                    incident.getAssignedAgent().getEmail()
+                );
+            }
+
         }
     }
 
