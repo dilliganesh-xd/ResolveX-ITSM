@@ -66,6 +66,18 @@ export interface Comment {
   updatedAt: string;
 }
 
+/** A file attached to an incident. The file itself is only reachable through the download endpoint. */
+export interface Attachment {
+  id: string;
+  incidentId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedById: string;
+  uploadedByName: string;
+  createdAt: string;
+}
+
 export type ActivityType =
   | 'INCIDENT_CREATED'
   | 'INCIDENT_ASSIGNED'
@@ -81,7 +93,9 @@ export type ActivityType =
   | 'INCIDENT_REOPENED'
   | 'SLA_AT_RISK'
   | 'SLA_BREACHED'
-  | 'SLA_COMPLETED';
+  | 'SLA_COMPLETED'
+  | 'ATTACHMENT_ADDED'
+  | 'ATTACHMENT_REMOVED';
 
 export interface Activity {
   id: string;

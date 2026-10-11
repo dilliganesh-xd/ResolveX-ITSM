@@ -7,7 +7,8 @@ package com.rewin.itsm.domain.enums;
  * INCIDENT_UPDATED for a field edit such as a category change, INCIDENT_REOPENED
  * for a resolved incident sent back to IN_PROGRESS, and SLA_AT_RISK for the
  * moment an incident enters the last quarter of its window - the warning that
- * makes the breach that follows unsurprising.
+ * makes the breach that follows unsurprising. ATTACHMENT_ADDED and
+ * ATTACHMENT_REMOVED record files being attached to or removed from an incident.
  */
 public enum ActivityType {
     INCIDENT_CREATED,
@@ -24,5 +25,7 @@ public enum ActivityType {
     INCIDENT_REOPENED,
     SLA_AT_RISK,
     SLA_BREACHED,
-    SLA_COMPLETED
+    SLA_COMPLETED,
+    ATTACHMENT_ADDED,
+    ATTACHMENT_REMOVED
 }

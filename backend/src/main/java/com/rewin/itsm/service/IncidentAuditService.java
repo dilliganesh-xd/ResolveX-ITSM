@@ -99,6 +99,16 @@ public class IncidentAuditService {
             (internal ? "Internal note added by " : "Comment added by ") + nameOf(author), null, null);
     }
 
+    public void attachmentAdded(Incident incident, User actor, String fileName) {
+        record(incident, actor, ActivityType.ATTACHMENT_ADDED,
+            "Attachment " + fileName + " added by " + nameOf(actor), null, fileName);
+    }
+
+    public void attachmentRemoved(Incident incident, User actor, String fileName) {
+        record(incident, actor, ActivityType.ATTACHMENT_REMOVED,
+            "Attachment " + fileName + " removed by " + nameOf(actor), fileName, null);
+    }
+
     public void incidentResolved(Incident incident, User actor, IncidentStatus from, String summary) {
         record(incident, actor, ActivityType.INCIDENT_RESOLVED,
             withNote("Incident resolved by " + nameOf(actor), summary), from.name(), IncidentStatus.RESOLVED.name());

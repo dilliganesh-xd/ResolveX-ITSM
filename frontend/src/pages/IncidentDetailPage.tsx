@@ -6,6 +6,7 @@ import { listTeams, listAgents, type AdminUser, type Team } from '@/api/admin';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusPill } from '@/components/ui/StatusPill';
+import { AttachmentPanel } from '@/components/incident/AttachmentPanel';
 import { CommentThread } from '@/components/incident/CommentThread';
 import { ActivityTimeline } from '@/components/incident/ActivityTimeline';
 import { AgentControls } from '@/components/incident/AgentControls';
@@ -130,6 +131,13 @@ export function IncidentDetailPage() {
               <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{incident.resolutionSummary}</p>
             </Card>
           )}
+
+          <AttachmentPanel
+            incidentId={incident.id}
+            status={incident.status}
+            canRemove={user?.role === 'ADMIN'}
+            onChanged={loadThread}
+          />
 
           {canAct && <AgentControls incident={incident} teams={teams} agents={agents} onChanged={load} />}
 

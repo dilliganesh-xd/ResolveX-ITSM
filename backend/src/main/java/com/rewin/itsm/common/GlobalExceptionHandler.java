@@ -1,5 +1,6 @@
 package com.rewin.itsm.common;
 
+import com.rewin.itsm.storage.AttachmentStorageException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
@@ -19,6 +20,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -57,10 +61,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
         HttpMessageNotReadableException.class,
         MethodArgumentTypeMismatchException.class,
-        MissingServletRequestParameterException.class})
+        MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class,
+        MultipartException.class})
     public ResponseEntity<ApiError> onUnreadable(Exception ex) {
         return status(HttpStatus.BAD_REQUEST, "Malformed request",
             "The request body or a parameter could not be read.");
+    }
+
+    /** The upload was larger than spring.servlet.multipart allows. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> onUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return status(HttpStatus.CONTENT_TOO_LARGE, "File too large", "The file is larger than the upload limit.");
+    }
+
+    /** S3 (or the local folder) failed. The caller can retry; nothing was half-saved. */
+    @ExceptionHandler(AttachmentStorageException.class)
+    public ResponseEntity<ApiError> onStorageFailure(AttachmentStorageException ex) {
+        log.error("Attachment storage failure", ex);
+        return status(HttpStatus.SERVICE_UNAVAILABLE, "Storage unavailable",
+            "File storage is unavailable right now. Please try again.");
     }
 
     @ExceptionHandler(BadRequestException.class)

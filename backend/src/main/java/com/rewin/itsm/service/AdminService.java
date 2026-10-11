@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -64,6 +66,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AdminService {
+
+    /** The cache holding {@link #listSlaPolicies()}; see CacheConfig. */
+    public static final String SLA_POLICIES_CACHE = "slaPolicies";
 
     /** Statuses that count as an incident an agent has finished. */
     private static final Set<IncidentStatus> FINISHED =
@@ -320,7 +325,12 @@ public class AdminService {
 
     // ---------------------------------------------------------- sla policies
 
+    /**
+     * Cached: every role reads the same list, and it changes only through the
+     * three writes below, each of which empties the cache.
+     */
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = SLA_POLICIES_CACHE)
     public List<SlaPolicyResponse> listSlaPolicies() {
         // Sorted in Java, by severity. The priority column stores the enum name,
         // so ordering it in SQL would sort alphabetically - CRITICAL, HIGH, LOW,
@@ -333,6 +343,7 @@ public class AdminService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = SLA_POLICIES_CACHE, allEntries = true)
     public SlaPolicyResponse createSlaPolicy(SlaPolicyRequest request, AppUserPrincipal actor) {
         validatePolicy(request);
         SlaPolicy policy = new SlaPolicy(request.name().trim(), request.priority(),
@@ -347,6 +358,7 @@ public class AdminService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = SLA_POLICIES_CACHE, allEntries = true)
     public SlaPolicyResponse updateSlaPolicy(UUID id, SlaPolicyRequest request, AppUserPrincipal actor) {
         validatePolicy(request);
         SlaPolicy policy = slaPolicyRepository.findById(id)
@@ -370,6 +382,7 @@ public class AdminService {
      * this only changes which policy the next incident of that priority gets.
      */
     @Transactional
+    @CacheEvict(cacheNames = SLA_POLICIES_CACHE, allEntries = true)
     public SlaPolicyResponse setSlaPolicyActive(UUID id, boolean active, AppUserPrincipal actor) {
         SlaPolicy policy = slaPolicyRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("SLA policy not found"));
