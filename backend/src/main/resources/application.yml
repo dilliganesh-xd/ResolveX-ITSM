@@ -78,6 +78,12 @@ app:
     # Overridden by JWT_SECRET in every environment other than local dev.
     secret: ${JWT_SECRET:change-me-in-env-this-is-a-dev-only-placeholder-key-32b}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:60}
+  # The first administrator for an empty database; see AdminBootstrap. Unset
+  # (the default) means the feature is off.
+  bootstrap-admin:
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+    name: ${ADMIN_BOOTSTRAP_NAME:Administrator}
   attachments:
     # s3 when deployed. The dev and test profiles use `local`, a folder on disk,
     # so attachments work without an AWS account.

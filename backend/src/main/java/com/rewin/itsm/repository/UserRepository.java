@@ -16,6 +16,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     List<User> findAllByRole(RoleName role);
 
+    boolean existsByRole(RoleName role);
+
     /** Only active agents are offered for new assignments. */
     List<User> findAllByRoleAndActiveTrueOrderByNameAsc(RoleName role);
 
