@@ -17,9 +17,24 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+  # No Redis in tests, and no cache either: many tests seed SLA policies straight
+  # into the repository and read them back through the API. The caching itself
+  # is covered by SlaPolicyCacheIntegrationTest, which turns a cache back on.
+  cache:
+    type: none
 
 # The sweep is driven directly by the tests; a timer running alongside them
 # would change incidents mid-assertion.
 sla:
   scheduler:
     enabled: false
+
+management:
+  health:
+    redis:
+      enabled: false
+
+app:
+  attachments:
+    storage: local
+    local-dir: target/test-attachments

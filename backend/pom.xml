@@ -31,14 +31,46 @@
     <tomcat.version>11.0.26</tomcat.version>
     <jackson-bom.version>3.1.7</jackson-bom.version>
     <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+
+    <!-- One AWS SDK version for every AWS module (EventBridge, S3). -->
+    <aws-sdk.version>2.31.54</aws-sdk.version>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
-    <!-- AWS SDK for Amazon EventBridge -->
+    <!-- AWS SDK for Amazon EventBridge. Only the synchronous client is used, so
+         the Netty async HTTP client is left out of the image. -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>eventbridge</artifactId>
-      <version>2.31.54</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- AWS SDK for Amazon S3: incident attachment storage. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

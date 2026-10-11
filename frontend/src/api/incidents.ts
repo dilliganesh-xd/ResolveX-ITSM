@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   Activity,
+  Attachment,
   Comment,
   IncidentDetail,
   IncidentFilters,
@@ -139,4 +140,54 @@ export async function listComments(id: string): Promise<Comment[]> {
 export async function listActivities(id: string): Promise<Activity[]> {
   const { data } = await api.get<PageResponse<Activity>>(`/incidents/${id}/activities`);
   return [...data.content].reverse();
+}
+
+// ------------------------------------------------------------ attachments
+
+/** Uploads and downloads can be several megabytes, so they get longer than the default timeout. */
+const FILE_TIMEOUT_MS = 120000;
+
+export async function listAttachments(id: string): Promise<Attachment[]> {
+  const { data } = await api.get<Attachment[]>(`/incidents/${id}/attachments`);
+  return data;
+}
+
+/**
+ * The Content-Type is set explicitly: the shared client defaults to JSON, and
+ * Axios would otherwise serialise the FormData as a JSON object. The browser
+ * adds the multipart boundary itself.
+ */
+export async function uploadAttachment(id: string, file: File): Promise<Attachment> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<Attachment>(`/incidents/${id}/attachments`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: FILE_TIMEOUT_MS,
+  });
+  return data;
+}
+
+/**
+ * Fetched through the API, with the user's token, rather than opened as a
+ * plain link: the bucket is private and the backend checks access on every
+ * download. The blob is then handed to the browser to save.
+ */
+export async function downloadAttachment(attachment: Attachment): Promise<void> {
+  const { data } = await api.get<Blob>(
+    `/incidents/${attachment.incidentId}/attachments/${attachment.id}/download`,
+    { responseType: 'blob', timeout: FILE_TIMEOUT_MS },
+  );
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = attachment.fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Admin only. */
+export async function removeAttachment(attachment: Attachment): Promise<void> {
+  await api.delete(`/incidents/${attachment.incidentId}/attachments/${attachment.id}`);
 }

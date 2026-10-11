@@ -25,8 +25,24 @@ spring:
       port: ${REDIS_PORT:6379}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
+      # Fail fast: if Redis is unreachable, CacheConfig falls back to the
+      # database, and a request should not hang waiting on the cache first.
+      timeout: ${REDIS_TIMEOUT:2s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
   cache:
-    type: redis
+    # redis when deployed; the dev and test profiles switch to an in-memory cache
+    # so neither needs a Redis server.
+    type: ${CACHE_TYPE:redis}
+    redis:
+      # An upper bound on staleness for changes made outside the API, such as a
+      # row edited directly in the database. API writes evict immediately.
+      time-to-live: ${CACHE_TTL:10m}
+      key-prefix: "resolvex:"
+  servlet:
+    multipart:
+      # The same limit AttachmentService enforces, applied before the body is read.
+      max-file-size: ${ATTACHMENT_MAX_FILE_SIZE:10MB}
+      max-request-size: ${ATTACHMENT_MAX_REQUEST_SIZE:11MB}
 
 
 server:
@@ -40,6 +56,12 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    redis:
+      # Reports Redis in /actuator/health. Set false if a Redis outage should not
+      # mark the whole service DOWN - the application itself keeps working
+      # without it.
+      enabled: ${REDIS_HEALTH_ENABLED:true}
 
 sla:
   scheduler:
@@ -56,6 +78,18 @@ app:
     # Overridden by JWT_SECRET in every environment other than local dev.
     secret: ${JWT_SECRET:change-me-in-env-this-is-a-dev-only-placeholder-key-32b}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:60}
+  attachments:
+    # s3 when deployed. The dev and test profiles use `local`, a folder on disk,
+    # so attachments work without an AWS account.
+    storage: ${ATTACHMENT_STORAGE:s3}
+    max-file-size: ${ATTACHMENT_MAX_FILE_SIZE:10MB}
+    local-dir: ${ATTACHMENT_LOCAL_DIR:./data/attachments}
+    s3:
+      # Private bucket. Credentials come from the default AWS provider chain
+      # (the EC2 instance role when deployed) - never from this file.
+      bucket: ${S3_BUCKET_NAME:}
+      region: ${AWS_REGION:ap-south-1}
+      key-prefix: ${S3_KEY_PREFIX:incidents/}
 
 logging:
   level:

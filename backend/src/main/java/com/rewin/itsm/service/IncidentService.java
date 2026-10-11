@@ -473,6 +473,18 @@ public class IncidentService {
 
     // ------------------------------------------------------- authorization
 
+    /**
+     * Loads an incident the caller is allowed to see, or refuses with 404/403.
+     * For other services that hang data off an incident (attachments), so they
+     * apply exactly the rules this service does instead of a copy of them.
+     */
+    @Transactional(readOnly = true)
+    public Incident requireViewable(UUID id, AppUserPrincipal principal) {
+        Incident incident = require(id);
+        assertCanView(incident, principal);
+        return incident;
+    }
+
     /** Who may see an incident at all. */
     private void assertCanView(Incident incident, AppUserPrincipal principal) {
         switch (principal.getRole()) {
