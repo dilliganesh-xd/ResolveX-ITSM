@@ -1,27 +1,45 @@
 
 package com.rewin.itsm.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResponse;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Publishes SLA-breach events to EventBridge, where a Lambda turns them into
+ * emails.
+ *
+ * <p>Credentials come from the default AWS provider chain: the EC2 instance role
+ * when deployed, or {@code AWS_PROFILE} / environment variables locally. Nothing
+ * is hardcoded.
+ *
+ * <p>A failed publish is logged, not thrown. This is called from inside the SLA
+ * sweep's transaction, and an email that could not be sent must not roll back
+ * the breach that was recorded - nor the sweep of every other incident.
+ */
 @Service
 public class EventBridgePublisher {
+
+    private static final Logger log = LoggerFactory.getLogger(EventBridgePublisher.class);
 
     private final ObjectMapper objectMapper;
     private final boolean enabled;
     private final String region;
     private final String eventBusName;
 
-    
+
     public EventBridgePublisher(
             ObjectMapper objectMapper,
             @Value("${aws.eventbridge.enabled:false}") boolean enabled,
@@ -52,13 +70,9 @@ public class EventBridgePublisher {
         try {
             String detailJson = objectMapper.writeValueAsString(detail);
 
-            try (ProfileCredentialsProvider credentialsProvider =
-                    ProfileCredentialsProvider.builder()
-                        .profileName("java-process")
-                        .build();
-                EventBridgeClient client = EventBridgeClient.builder()
-                    .region(software.amazon.awssdk.regions.Region.of(region))
-                    .credentialsProvider(credentialsProvider)
+            try (EventBridgeClient client = EventBridgeClient.builder()
+                    .region(Region.of(region))
+                    .credentialsProvider(DefaultCredentialsProvider.builder().build())
                     .build()) {
                 PutEventsResponse response = client.putEvents(
                     PutEventsRequest.builder()
@@ -72,13 +86,13 @@ public class EventBridgePublisher {
 
                 if (response.failedEntryCount() != null
                         && response.failedEntryCount() > 0) {
-                    throw new IllegalStateException(
-                        "EventBridge failed to accept the SLA-breach event");
+                    log.warn("EventBridge rejected the SLA-breach event for {} ({} stage)",
+                        incidentId, stage);
                 }
             }
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(
-                "Could not serialize the SLA-breach event", e);
+        } catch (JacksonException | SdkException e) {
+            log.warn("Could not publish the SLA-breach event for {} ({} stage)",
+                incidentId, stage, e);
         }
     }
 }
