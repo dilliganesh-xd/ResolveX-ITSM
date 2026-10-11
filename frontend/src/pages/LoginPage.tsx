@@ -215,12 +215,16 @@ export function LoginPage() {
 
           <div style={infoBoxStyle}>
             <div>Accounts are created by an administrator. There is no self sign-up.</div>
-            <div style={{ marginTop: 6 }}>
-              Development accounts &mdash; password{' '}
-              <code style={{ fontFamily: font.mono, color: color.subtle }}>Password123!</code>
-              <br />
-              admin@itsm.local &middot; agent@itsm.local &middot; employee@itsm.local
-            </div>
+            {/* The seeded demo accounts exist only in local development. A
+                production build must not advertise an email and password. */}
+            {import.meta.env.DEV && (
+              <div style={{ marginTop: 6 }}>
+                Development accounts &mdash; password{' '}
+                <code style={{ fontFamily: font.mono, color: color.subtle }}>Password123!</code>
+                <br />
+                admin@itsm.local &middot; agent@itsm.local &middot; employee@itsm.local
+              </div>
+            )}
           </div>
         </div>
       </section>
