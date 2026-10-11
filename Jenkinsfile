@@ -290,7 +290,7 @@ pipeline {
                     docker run -d \
                       --name resolvex-frontend \
                       --restart unless-stopped \
-                      -p 80:80 \
+                      -p 80:8080 \
                       ${ECR_REGISTRY}/${ECR_FRONTEND_REPO}:${BUILD_NUMBER}
                 '''
             }
