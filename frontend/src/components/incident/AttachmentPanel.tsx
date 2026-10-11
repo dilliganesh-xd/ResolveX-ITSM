@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconDownload } from '@/components/ui/icons';
 import { useToast } from '@/feedback/useToast';
+import { ATTACHMENT_ACCEPT, attachmentProblem, formatFileSize } from '@/lib/attachments';
 import { formatDateTime } from '@/lib/display';
 import { color, font, radius } from '@/lib/tokens';
 import type { ApiError, Attachment, IncidentStatus } from '@/lib/types';
@@ -18,13 +19,6 @@ interface AttachmentPanelProps {
   /** Called after a file is added or removed, so the activity trail can refresh. */
   onChanged: () => void;
 }
-
-/**
- * Mirrors the server's allow-list so an obviously wrong file is caught before
- * it is uploaded. The server still checks every file - this is only feedback.
- */
-const ACCEPT = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.log,.csv,.docx,.xlsx';
-const MAX_BYTES = 10 * 1024 * 1024;
 
 export function AttachmentPanel({ incidentId, status, canRemove, onChanged }: AttachmentPanelProps) {
   const { notify } = useToast();
@@ -50,17 +44,9 @@ export function AttachmentPanel({ incidentId, status, canRemove, onChanged }: At
     if (!file) {
       return;
     }
-    const extension = file.name.includes('.') ? `.${file.name.split('.').pop()?.toLowerCase()}` : '';
-    if (!ACCEPT.split(',').includes(extension)) {
-      setError('Only PNG, JPG, GIF, WEBP, PDF, TXT, LOG, CSV, DOCX and XLSX files can be attached.');
-      return;
-    }
-    if (file.size === 0) {
-      setError('Empty files cannot be attached.');
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError('Files can be at most 10 MB.');
+    const problem = attachmentProblem(file);
+    if (problem) {
+      setError(problem);
       return;
     }
 
@@ -115,7 +101,7 @@ export function AttachmentPanel({ incidentId, status, canRemove, onChanged }: At
             <input
               ref={input}
               type="file"
-              accept={ACCEPT}
+              accept={ATTACHMENT_ACCEPT}
               onChange={onFileChosen}
               style={{ display: 'none' }}
               aria-label="Choose a file to attach"
@@ -172,7 +158,7 @@ export function AttachmentPanel({ incidentId, status, canRemove, onChanged }: At
                   </span>
                 </button>
                 <div style={{ marginTop: 2, fontSize: 11, color: color.faint, fontWeight: 600 }}>
-                  {formatSize(attachment.sizeBytes)} · {attachment.uploadedByName} ·{' '}
+                  {formatFileSize(attachment.sizeBytes)} · {attachment.uploadedByName} ·{' '}
                   <span style={{ fontFamily: font.mono }}>{formatDateTime(attachment.createdAt)}</span>
                 </div>
               </div>
@@ -208,14 +194,4 @@ export function AttachmentPanel({ incidentId, status, canRemove, onChanged }: At
 
 function messageFrom(caught: unknown, fallback: string): string {
   return axios.isAxiosError<ApiError>(caught) ? caught.response?.data?.message ?? fallback : fallback;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
