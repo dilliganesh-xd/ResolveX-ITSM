@@ -1,7 +1,13 @@
+// ResolveX-ITSM CI/CD pipeline.
+// Step-by-step explanation in simple words: docs/ci-cd-explained.md
+//
+// CI (stages 1-10): build, test, SonarCloud, Docker images, Trivy scan, push to ECR.
+// CD (stages 11-12): deploy to both app EC2 servers one by one, check via the ALB.
 
 pipeline {
     agent any
 
+    // Keep only 2 old builds; never run two builds at the same time.
     options {
         buildDiscarder(
             logRotator(
@@ -11,12 +17,16 @@ pipeline {
         disableConcurrentBuilds()
     }
 
+    // Java 21, Node.js 20 and Maven, as configured in Manage Jenkins -> Tools.
     tools {
         jdk 'JDK21'
         nodejs 'NodeJS-20'
         maven 'MAVEN'
     }
 
+    // Shared values for every stage. No secrets here: they come from
+    // Jenkins Credentials in the deploy stage. BUILD_NUMBER (from Jenkins)
+    // is used as the image tag, so every build is a new image version.
     environment {
         // AWS and ECR configuration
         AWS_REGION = 'ap-south-1'
@@ -65,6 +75,7 @@ pipeline {
         // ============================================
         // CI: FRONTEND BUILD
         // ============================================
+        // 1. Install exact npm packages and build React. Fails fast on TypeScript errors.
 
         stage('Frontend Build') {
             steps {
@@ -78,6 +89,7 @@ pipeline {
         // ============================================
         // CI: BACKEND TEST AND BUILD
         // ============================================
+        // 2. Compile the backend, run all tests (H2 + in-memory cache), package the JAR.
 
         stage('Backend Test & Build') {
             steps {
@@ -90,6 +102,7 @@ pipeline {
         // ============================================
         // CI: SONARCLOUD ANALYSIS
         // ============================================
+        // 3. Send the backend code to SonarCloud for a quality report (token from Jenkins).
 
         stage('SonarCloud Analysis') {
             steps {
@@ -108,6 +121,7 @@ pipeline {
         // ============================================
         // CI: BUILD FRONTEND DOCKER IMAGE
         // ============================================
+        // 4. Build the Nginx + React image (frontend/Dockerfile), tagged with the build number.
 
         stage('Docker Build - Frontend') {
             steps {
@@ -122,6 +136,7 @@ pipeline {
         // ============================================
         // CI: BUILD BACKEND DOCKER IMAGE
         // ============================================
+        // 5. Build the Java 21 + Spring Boot image (backend/Dockerfile). Tests ran in step 2.
 
         stage('Docker Build - Backend') {
             steps {
@@ -136,6 +151,7 @@ pipeline {
         // ============================================
         // CI: TRIVY FRONTEND SCAN
         // ============================================
+        // 6. Security gate: fail the build if the image has a fixable HIGH/CRITICAL CVE.
 
         stage('Trivy Scan - Frontend') {
             steps {
@@ -156,6 +172,7 @@ pipeline {
         // ============================================
         // CI: TRIVY BACKEND SCAN
         // ============================================
+        // 7. Same security gate for the backend image.
 
         stage('Trivy Scan - Backend') {
             steps {
@@ -176,6 +193,7 @@ pipeline {
         // ============================================
         // CI: ECR LOGIN
         // ============================================
+        // 8. Get a temporary ECR password from AWS and log Docker in with it.
 
         stage('ECR Login') {
             steps {
@@ -192,6 +210,7 @@ pipeline {
         // ============================================
         // CI: TAG IMAGES
         // ============================================
+        // 9. Give each image its full ECR name so Docker knows where to push it.
 
         stage('Tag Images') {
             steps {
@@ -210,6 +229,7 @@ pipeline {
         // ============================================
         // CI: PUSH IMAGES TO ECR
         // ============================================
+        // 10. Upload both images to ECR. CI ends here.
 
         stage('Push Images to ECR') {
             steps {
@@ -226,6 +246,8 @@ pipeline {
         // ============================================
         // CD: DEPLOY TO THE APP EC2 INSTANCES
         // ============================================
+        // 11. For app-1, then app-2: write backend.env over SSH, then run
+        //     deploy/deploy-app.sh there (pull images, restart containers, health checks).
         //
         // For each app server: write the backend settings and secrets to
         // ~/resolvex/backend.env over SSH (never on a command line), then run
@@ -304,6 +326,7 @@ pipeline {
         // ============================================
         // CD: VERIFY THROUGH THE LOAD BALANCER
         // ============================================
+        // 12. Call /api/health through the ALB, the same path users take.
 
         stage('Verify via Load Balancer') {
             steps {
@@ -324,6 +347,7 @@ pipeline {
         }
     }
 
+    // Runs after the stages: print a result, always clean local images.
     post {
         success {
             echo '''
